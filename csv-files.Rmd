@@ -1,0 +1,297 @@
+---
+title: "How to Import & Export csv Files in R"
+subtitle: "Base R & Extension Packages"
+author: "StatistikinDD"
+date: "Presentation Created: `r Sys.Date()`"
+output:
+  xaringan::moon_reader:
+    chakra: libs/remark-latest.min.js
+    lib_dir: libs
+    css: ["libs/_css/xaringan-themer.css", "libs/_css/my_css.css"]
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      slideNumberFormat: "%current%"
+      ratio: 16:9
+---
+
+```{r setup, include = FALSE}
+
+options(htmltools.dir.version = FALSE)
+# knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, comment = "")
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+
+library(knitr)
+library(tidyverse)
+library(bench)
+theme_set(theme_bw(base_size = 20))
+
+```
+
+# The Data: nycflights13
+
+We're using the **flights** data from the **nycflights13** package, published by ***Hadley Wickham***.
+
+--
+
+```{r data-intro}
+
+library(nycflights13)
+
+flights
+
+```
+
+
+---
+
+# The Packages
+
+.pull-left[
+
+### Base R: read.csv() / write.csv()
+### tidyverse: readr
+### vroom
+### rio
+### data.table
+
+]
+
+.pull-right[
+.pull-left[
+```{r, out.width = "194", out.height = "150", fig.align = "center", echo = FALSE}
+knitr::include_graphics("libs/_Images/logo_R.png")
+```
+
+```{r, out.width = "130", out.height = "150", fig.align = "center", echo = FALSE}
+knitr::include_graphics("libs/_Images/logo_vroom.png")
+```
+
+]
+.pull-right[
+```{r, out.width = "130", out.height = "150", fig.align = "center", echo = FALSE}
+knitr::include_graphics("libs/_Images/logo_readr.png")
+```
+
+
+```{r, out.width = "130", out.height = "150", fig.align = "center", echo = FALSE}
+knitr::include_graphics("libs/_Images/logo_rio.png")
+```
+
+]
+
+```{r, out.width = "130", out.height = "150", fig.align = "center", echo = FALSE}
+knitr::include_graphics("libs/_Images/logo_datatable.png")
+
+```
+
+]
+
+
+---
+
+# Exporting / Saving the Data
+
+We can use functions from various packages to save the data:
+
+```{r save, eval = FALSE}
+
+# Base R
+write.csv(flights, file = "flights_BaseR.csv", row.names = FALSE)
+
+# tidyverse: readr
+readr::write_csv(flights, file = "flights_tidyverse.csv")
+
+#vroom
+vroom::vroom_write(flights, "flights_vroom.csv", delim = ",")
+
+# rio
+rio::export(flights, "flights_rio.csv")
+
+# data.table
+data.table::fwrite(flights, "flights_datatable.csv")
+
+```
+
+---
+
+# Exporting / Saving the Data
+
+How large are the csv files?
+
+```{r file-sizes, hold = TRUE, collapse = TRUE}
+
+my_fileinfo <- function(file) {
+  file.info(file)$size |> utils:::format.object_size("auto")
+}
+
+my_fileinfo("flights_BaseR.csv")
+
+my_fileinfo("flights_tidyverse.csv")
+
+my_fileinfo("flights_vroom.csv")
+
+my_fileinfo("flights_rio.csv")
+
+my_fileinfo("flights_datatable.csv")
+
+```
+
+
+---
+
+# Exporting / Saving the Data
+
+## How do the files differ?
+
+* Manually inspect csv files
+* Use ***waldo::compare()***
+
+Packages differ ...
+
+* ... in how they **encode date-time-columns**; here: time_hour.
+* ... in how they treat **missing values**: empty cells vs. explicit NAs.
+
+* Base R, by default, writes **row names** to disc.
+* Loading data: Classes may differ depending on package
+  (***data.frame*** and ***data.table*** or ***tibble***)
+
+.pull-left[
+```{r waldo, hold = TRUE, collapse = TRUE, eval = FALSE, echo = FALSE}
+
+n <- 10000
+missings <- !complete.cases(flights)[1:n]
+
+my_fread <- function(file, nrows = n) {
+  data <- data.table::fread(file, nrows = nrows)
+  data[missings]
+}
+
+flights_BaseR <- my_fread("flights_BaseR.csv")
+flights_tidyverse <- my_fread("flights_tidyverse.csv")
+flights_vroom <- my_fread("flights_vroom.csv")
+flights_rio <- my_fread("flights_rio.csv")
+flights_datatable <- my_fread("flights_datatable.csv")
+
+waldo::compare(flights_BaseR, flights_tidyverse)
+waldo::compare(flights_tidyverse, flights_vroom)
+waldo::compare(flights_vroom, flights_rio)
+waldo::compare(flights_rio, flights_datatable)
+
+```
+]
+
+.pull-right[
+```{r waldo-exec, echo = FALSE, ref.label = "waldo", eval = FALSE}
+```
+
+]
+
+---
+
+# Exporting / Saving: Benchmarks
+
+```{r save-bench, cache = TRUE}
+times <- bench::mark(
+  'Base R' = write.csv(flights, file = "flights_BaseR.csv", row.names = FALSE),
+  tidyverse = readr::write_csv(flights, file = "flights_tidyverse.csv"),
+  vroom = vroom::vroom_write(flights, "flights_vroom.csv", delim = ","),
+  rio = rio::export(flights, "flights_rio.csv"),
+  'data.table' = data.table::fwrite(flights, "flights_datatable.csv"),
+  check = FALSE)
+```
+
+.pull-left[
+```{r save-bench-plot, out.width = "60%", out.height = "60%", fig.align = "center", echo = FALSE}
+autoplot(times, type = "boxplot")
+```
+]
+
+.pull-right[
+```{r save-bench-table, echo = FALSE}
+times[, 1:4]
+```
+]
+
+---
+
+# Importing / Reading: Benchmarks
+
+```{r read-bench, cache = TRUE, message = FALSE, warning = FALSE}
+times <- bench::mark(
+  'Base R' = read.csv("flights_datatable.csv"),
+  tidyverse = readr::read_csv("flights_datatable.csv"),
+  vroom = vroom::vroom("flights_datatable.csv"),
+  rio = rio::import("flights_datatable.csv"),
+  'data.table' = data.table::fread("flights_datatable.csv"),
+  check = FALSE)
+
+```
+
+.pull-left[
+```{r read-bench-plot, out.width = "60%", out.height = "60%", fig.align = "center", echo = FALSE}
+autoplot(times, type = "boxplot")
+```
+]
+
+.pull-right[
+```{r read-bench-table, echo = FALSE}
+times[, 1:4]
+```
+]
+
+---
+
+# A Note on the .csv File Format
+
+```{r csv-format, cache = TRUE}
+
+saveRDS(flights, file = "flights.rds")
+save(flights, file = "flights.Rda")
+
+my_fileinfo("flights_datatable.csv")
+my_fileinfo("flights.rds")
+my_fileinfo("flights.Rda")
+
+```
+
+
+---
+
+# Summary
+
+### Data Import
+
+* **data.table is fastest** (alongside rio, which uses data.table internally)
+
+### Data Export
+
+* **data.table is fastest, again **
+* Files may differ slightly (date-time formats, treatment of missing values, row names)
+* vroom provides lazy loading, the Altrep framework, indexing, and multiple threads
+* R-internal files like **.rda, .rds** are stored much **more efficient**ly than .csv due to file compression
+
+### When to use Base R's read.csv() / write.csv()?
+
+* When avoiding dependencies on external packages is your main objective  
+(Check out renv to alleviate dependency hell)
+* When file sizes are moderate or run times are not critical
+
+---
+
+class: center, middle
+
+# Thanks!
+
+### Youtube: StatistikinDD
+
+### Twitter: @StatistikinDD
+
+### github: fjodor
+
+Slides created via the R package [**xaringan**](https://github.com/yihui/xaringan).
+
+The chakra comes from [remark.js](https://remarkjs.com), [**knitr**](https://yihui.org/knitr), and [R Markdown](https://rmarkdown.rstudio.com).
+
+Thanks to **Yihui Xie** for *{knitr}* and *{xaringan}* and **Garrick Aden-Buie** for *{xaringanthemer}*.
