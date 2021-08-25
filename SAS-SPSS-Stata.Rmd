@@ -1,0 +1,305 @@
+---
+title: "Importing SAS, SPSS, and Stata Data in R<br>Using haven / tidyverse"
+subtitle: "and foreign for Systat / WEKA Data"
+author: "StatistikinDD"
+date: "Presentation Created: `r Sys.Date()`"
+output:
+  xaringan::moon_reader:
+    chakra: libs/remark-latest.min.js
+    lib_dir: libs
+    css: ["libs/_css/xaringan-themer.css", "libs/_css/my_css.css"]
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      slideNumberFormat: "%current%"
+      ratio: 16:9
+---
+
+```{r setup, include = FALSE}
+
+options(htmltools.dir.version = FALSE)
+# knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, comment = "")
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+
+```
+
+# The haven R Package
+
+.pull-left[
+* **haven** is part of the **tidyverse**,  
+i. e. it gets installed automatically when you install the tidyverse  
+
+`install.packages("tidyverse")`
+
+* **haven** is **NOT** part of **core tidyverse**,  
+i. e. it is **NOT** loaded when you run  
+
+`library(tidyverse)`
+
+* So to use haven, type  
+
+`library(haven)`  
+
+even if you have already run `library(tidyverse)`
+
+]
+
+.pull-right[
+```{r, out.width = "45%", out.height = "45%", echo = FALSE}
+knitr::include_graphics("libs/_Images/logo_tidyverse.png")
+```
+
+```{r, out.width = "45%", out.height = "45%", fig.align = "right", echo = FALSE}
+knitr::include_graphics("libs/_Images/logo_haven.png")
+```
+
+]
+
+---
+
+# Importing SAS Data in R
+
+### haven::read_sas()
+
+.pull-left[
+
+```{r SAS, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(haven)
+path <- system.file("examples",
+        "iris.sas7bdat", package = "haven")
+iris <- read_sas(path)  #<<
+str(iris, vec.len = 2)
+
+```
+]
+
+--
+
+.pull-right[
+```{r SAS2}
+iris %>% 
+  zap_formats() %>%   #<<
+  str(vec.len = 1)
+```
+
+]
+
+---
+
+# Importing SAS Data in R
+
+### Notes on Parameters
+
+See `?read_sas`
+
+* *data_file*: Path to data
+* *catalog_file*: Provide path to a separate catalog file
+* *encoding, catalog_encoding*: Character encodings for data_file and catalog_file
+* *col_select*: Select columns like in `dplyr::select()`
+* *skip*: Number of lines to skip before reading data
+* *n_max*: Maximum number of lines to read
+* *.name_repair*: Treatment of problematic column names; e. g. "check_unique" or a custom function like the brilliant `janitor::clean_names()`
+
+---
+
+# Exporting SAS Data from R
+
+**From the documentation: `write_sas()` is currently experimental and only works for limited datasets.**
+
+```{r SAS-write}
+
+data(USArrests)
+
+write_sas(USArrests, path = "USArrests.sas7bdat") #<<
+
+USArrests_sas <- read_sas("USArrests.sas7bdat")
+str(USArrests_sas, vec.len = 2)
+```
+
+---
+
+# Importing SPSS Data in R
+
+### haven::read_spss() / read_sav() / read_por()
+
+.pull-left[
+
+```{r SPSS}
+path <- system.file("examples",
+        "iris.sav", package = "haven")
+iris <- read_spss(path)
+str(iris, vec.len = 2, width = 35)
+
+```
+]
+
+--
+
+.pull-right[
+```{r SPSS2}
+iris %>% 
+  zap_formats() %>%   #<<
+  str(vec.len = 1, width = 30)
+```
+
+* `read_spss()` reads both .sav and .por
+* You can also use `read_sav()` or `read_por()` directly
+
+]
+
+---
+
+# Importing SPSS Data in R
+
+### Notes on Labels
+
+Labels are handled specifically:
+
+```{r SPSS3}
+
+head(iris, n = 2)
+class(iris$Species)
+
+```
+
+---
+
+# Importing SPSS Data in R
+
+### Notes on Labels
+
+SPSS-style user-defined missing values are supported.  
+See `?labelled_spss`
+
+```{r}
+x1 <- labelled_spss(1:10, c(Good = 1, Bad = 8), na_values = c(9, 10))
+x1
+is.na(x1)
+```
+
+---
+
+# Exporting SPSS Data from R
+
+### haven::write_sav()
+
+```{r}
+
+write_sav(iris, "iris.sav") #<<
+
+iris <- read_spss("iris.sav")
+str(iris)
+
+```
+
+---
+
+# Importing Stata Data in R
+
+.pull-left[
+
+### haven::read_stata() / read_dta()
+
+```{r Stata}
+path <- system.file("examples",
+        "iris.dta", package = "haven")
+iris <- read_stata(path)  #<<
+str(iris[, c(1:2, 5)], vec.len = 2)
+
+```
+]
+
+--
+
+.pull-right[
+```{r Stata2}
+iris[, c(1:2, 5)] %>% 
+  zap_formats() %>%   #<<
+  str(vec.len = 1)
+
+
+iris[, c(1:2, 5)] %>% 
+  zap_formats() %>%
+  zap_label() %>%   #<<
+  str(vec.len = 1)
+
+```
+
+]
+
+---
+
+# Exporting Stata Data from R
+
+### haven::write_dta()
+
+.pull-left[
+```{r}
+
+write_dta(iris, "iris14.dta", #<<
+          version = 14) #<<
+
+iris14 <- read_stata("iris14.dta")
+str(iris14[, c(1:2, 5)], vec.len = 2)
+
+```
+]
+
+.pull-right[
+```{r}
+
+write_dta(iris, "iris15.dta", #<<
+          version = 15) #<<
+
+iris15 <- read_stata("iris15.dta")
+str(iris15[, c(1:2, 5)], vec.len = 2)
+
+```
+
+]
+
+Note: Since Stata version 14, encodings are explicitly declared in .dta files.
+
+```{r, echo = FALSE}
+
+files = c("iris.sas7bdat", "iris.sav", "iris14.dta", "iris15.dta", "USArrests.sas7bdat")
+unlink(files)
+rm(iris14, iris15, USArrests, files, path, x1)
+
+```
+
+---
+
+# Other File Formats: Systat, WEKA
+
+Use Base R's **foreign** package to import these.
+
+### Systat
+
+* `read.systat(file, to.data.frame = TRUE)` imports Systat files with extensions **.syd** or **.sys** (legacy).
+
+### WEKA
+
+* `read.arff(file)` imports Wekas **A**ttribute-**R**elation **F**ile **F**ormat.
+
+
+---
+
+
+class: center, middle
+
+# Thanks!
+
+### Youtube: StatistikinDD
+
+### Twitter: @StatistikinDD
+
+### github: fjodor
+
+Slides created via the R package [**xaringan**](https://github.com/yihui/xaringan).
+
+The chakra comes from [remark.js](https://remarkjs.com), [**knitr**](https://yihui.org/knitr), and [R Markdown](https://rmarkdown.rstudio.com).
+
+Thanks to **Yihui Xie** for *{knitr}* and *{xaringan}* and **Garrick Aden-Buie** for *{xaringanthemer}*.
