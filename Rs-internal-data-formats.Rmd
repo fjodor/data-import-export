@@ -1,0 +1,183 @@
+---
+title: "R's Internal Data Formats"
+subtitle: ".Rda, .RData, .rds"
+author: "StatistikinDD"
+date: "Presentation Created: `r Sys.Date()`"
+output:
+  xaringan::moon_reader:
+    chakra: libs/remark-latest.min.js
+    lib_dir: libs
+    css: ["libs/_css/xaringan-themer.css", "libs/_css/my_css.css"]
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      slideNumberFormat: "%current%"
+      ratio: 16:9
+---
+
+```{r setup, include = FALSE}
+
+options(htmltools.dir.version = FALSE)
+# knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, comment = "")
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+
+```
+
+# R's Internal Data Formats
+
+## <br>
+
+## .Rda and .RData
+
+## How .rds is Different
+
+## Comparing File Sizes to .csv
+
+---
+
+# The Diamonds Data (ggplot2)
+
+.pull-left[
+```{r plotly, eval = FALSE}
+
+library(tidyverse)
+library(plotly)
+
+p <- ggplot(data = diamonds,
+      aes(x = cut, fill = clarity)) +
+      geom_bar(position = "dodge") +
+      theme_bw()
+p <- ggplotly(p)
+
+library(widgetframe) #<<
+frameWidget(p) #<<
+
+```
+]
+
+.pull-right[
+```{r, ref.label = "plotly", echo = FALSE, message = FALSE}
+```
+
+]
+---
+
+# Storing Data in .Rda <br>and .RData Format
+
+```{r}
+save(diamonds, file = "diamonds.Rda")
+save(diamonds, file = "diamonds.RData")
+
+my_fileinfo <- function(file) {
+  file.info(file)$size |> utils:::format.object_size("auto")
+}
+
+my_fileinfo("diamonds.Rda")
+my_fileinfo("diamonds.RData")
+
+```
+
+---
+
+# Storing Several Objects in<br> .Rda / .RData Files
+
+```{r}
+
+save(diamonds, p, my_fileinfo, file = "diamonds.Rda")
+rm(list = ls())
+load("diamonds.Rda")
+ls()
+
+```
+
+---
+
+# .RData: Storing the <br>'Current Workspace'
+
+This is what also happens interactively when you close down RStudio and confirm to save the Workspace Image.
+
+```{r}
+
+save.image()
+rm(list = ls())
+load(".RData")
+ls()
+
+```
+## NB: There are good reasons NOT to rely on the Workspace Image!
+
+---
+
+# The .rds Format
+
+## .rds Can Only Store ONE Object
+
+```{r}
+save(diamonds, file = "diamonds.Rda")
+saveRDS(diamonds, file = "diamonds.rds")
+
+my_fileinfo("diamonds.Rda")
+my_fileinfo("diamonds.rds")
+
+```
+
+---
+
+# Why I Prefer .rds over .Rda / .RData
+
+```{r}
+
+diamonds <- tibble(
+  diamonds = c("Yellow", "Pink Champagne", "Synthetic"),
+  assumption = c("Neutral", "Wife might like", "Doubtful")
+)
+
+diamonds_ggplot2 <- readRDS("diamonds.rds") #<<
+
+load("diamonds.Rda") #<<
+
+str(diamonds)
+
+```
+
+---
+
+# Comparing File Sizes to .csv
+
+```{r}
+
+data.table::fwrite(diamonds, "diamonds.csv")
+
+my_fileinfo("diamonds.csv")
+my_fileinfo("diamonds.Rda")
+my_fileinfo("diamonds.rds")
+
+```
+
+```{r, echo = FALSE}
+
+unlink("diamonds.csv")
+unlink("diamonds.Rda")
+unlink("diamonds.RData")
+unlink("diamonds.rds")
+
+```
+
+---
+
+class: center, middle
+
+# Thanks!
+
+### Youtube: StatistikinDD
+
+### Twitter: @StatistikinDD
+
+### github: fjodor
+
+Slides created via the R package [**xaringan**](https://github.com/yihui/xaringan).
+
+The chakra comes from [remark.js](https://remarkjs.com), [**knitr**](https://yihui.org/knitr), and [R Markdown](https://rmarkdown.rstudio.com).
+
+Thanks to **Yihui Xie** for *{knitr}* and *{xaringan}* and **Garrick Aden-Buie** for *{xaringanthemer}*.
